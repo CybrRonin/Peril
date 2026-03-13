@@ -16,7 +16,7 @@ func main() {
 	connString := "amqp://guest:guest@localhost:5672/"
 	conn, err := amqp.Dial(connString)
 	if err != nil {
-		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
+		log.Fatalf("can not connect to RabbitMQ: %v", err)
 	}
 	defer conn.Close()
 
@@ -24,8 +24,14 @@ func main() {
 
 	publishChan, err := conn.Channel()
 	if err != nil {
-		log.Fatalf("Failed to create channel: %v", err)
+		log.Fatalf("can not create channel: %v", err)
 	}
+
+	_, queue, err := pubsub.DeclareAndBind(conn, routing.ExchangePerilTopic, routing.GameLogSlug, routing.GameLogSlug+".*", pubsub.SimpleQueueDurable)
+	if err != nil {
+		log.Fatalf("can not bind topic queue: %v", err)
+	}
+	fmt.Printf("Queue %s declared and bound!\n", queue.Name)
 
 	gamelogic.PrintServerHelp()
 
