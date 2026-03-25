@@ -26,13 +26,20 @@ func main() {
 		log.Fatalf("could not get register username: %v", err)
 	}
 
-	_, queue, err := pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect, routing.PauseKey+"."+username, routing.PauseKey, pubsub.SimpleQueueTransient)
-	if err != nil {
-		log.Fatalf("could not subscribe to pause: %v", err)
-	}
-	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
+	/*
+		_, queue, err := pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect, routing.PauseKey+"."+username, routing.PauseKey, pubsub.SimpleQueueTransient)
+		if err != nil {
+			log.Fatalf("could not subscribe to pause: %v", err)
+		}
+		fmt.Printf("Queue %v declared and bound!\n", queue.Name)
+	*/
 
 	gamestate := gamelogic.NewGameState(username)
+
+	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilDirect, routing.PauseKey+"."+gamestate.GetUsername(), routing.PauseKey, pubsub.SimpleQueueTransient, handlerPause(gamestate))
+	if err != nil {
+		log.Fatalf("couldn't subscribe to the JSON queue: %v", err)
+	}
 
 	for {
 		words := gamelogic.GetInput()
@@ -50,7 +57,7 @@ func main() {
 		case "move":
 			_, err := gamestate.CommandMove(words)
 			if err != nil {
-				fmt.Println("invalid move command")
+				fmt.Println(err)
 				continue
 			}
 		case "status":
