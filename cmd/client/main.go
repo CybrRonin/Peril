@@ -41,6 +41,16 @@ func main() {
 		log.Fatalf("couldn't subscribe to the JSON queue: %v", err)
 	}
 
+	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, routing.ArmyMovesPrefix+"."+gamestate.GetUsername(), routing.ArmyMovesPrefix+".*", pubsub.SimpleQueueTransient, handlerMove(gamestate))
+	if err != nil {
+		log.Fatalf("could not subscribe to army-move queue: %v", err)
+	}
+
+	pubChan, err := conn.Channel()
+	if err != nil {
+		log.Fatalf("could not create channel: %v", err)
+	}
+
 	for {
 		words := gamelogic.GetInput()
 		if len(words) == 0 {
@@ -55,11 +65,18 @@ func main() {
 				continue
 			}
 		case "move":
-			_, err := gamestate.CommandMove(words)
+			mv, err := gamestate.CommandMove(words)
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
+
+			err = pubsub.PublishJSON(pubChan, routing.ExchangePerilTopic, routing.ArmyMovesPrefix+"."+gamestate.GetUsername(), mv)
+			if err != nil {
+				fmt.Printf("error: %s\n", err)
+				continue
+			}
+			fmt.Println("Move published successfully!")
 		case "status":
 			gamestate.CommandStatus()
 		case "help":
