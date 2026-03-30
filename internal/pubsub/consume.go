@@ -38,7 +38,10 @@ func DeclareAndBind(
 	if queueType == SimpleQueueTransient {
 		durable = false
 	}
-	newQueue, err := ch.QueueDeclare(queueName, durable, !durable, !durable, false, nil)
+	queueTable := amqp.Table{
+		"x-dead-letter-exchange": "peril_dlx",
+	}
+	newQueue, err := ch.QueueDeclare(queueName, durable, !durable, !durable, false, queueTable)
 	if err != nil {
 		return &amqp.Channel{}, amqp.Queue{}, fmt.Errorf("unable to declare queue: %v", err)
 	}
