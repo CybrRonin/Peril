@@ -36,19 +36,24 @@ func main() {
 
 	gamestate := gamelogic.NewGameState(username)
 
+	pubChan, err := conn.Channel()
+	if err != nil {
+		log.Fatalf("could not create channel: %v", err)
+	}
+
 	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilDirect, routing.PauseKey+"."+gamestate.GetUsername(), routing.PauseKey, pubsub.SimpleQueueTransient, handlerPause(gamestate))
 	if err != nil {
 		log.Fatalf("couldn't subscribe to the JSON queue: %v", err)
 	}
 
-	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, routing.ArmyMovesPrefix+"."+gamestate.GetUsername(), routing.ArmyMovesPrefix+".*", pubsub.SimpleQueueTransient, handlerMove(gamestate))
+	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, routing.ArmyMovesPrefix+"."+gamestate.GetUsername(), routing.ArmyMovesPrefix+".*", pubsub.SimpleQueueTransient, handlerMove(gamestate, pubChan))
 	if err != nil {
 		log.Fatalf("could not subscribe to army-move queue: %v", err)
 	}
 
-	pubChan, err := conn.Channel()
+	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, routing.WarRecognitionsPrefix, routing.WarRecognitionsPrefix+".*", pubsub.SimpleQueueDurable, handlerConsumeWarMsgs(gamestate))
 	if err != nil {
-		log.Fatalf("could not create channel: %v", err)
+		log.Fatalf("could not subscribe to war declarations queue: %v", err)
 	}
 
 	for {
