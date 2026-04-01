@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -51,7 +52,7 @@ func main() {
 		log.Fatalf("could not subscribe to army-move queue: %v", err)
 	}
 
-	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, routing.WarRecognitionsPrefix, routing.WarRecognitionsPrefix+".*", pubsub.SimpleQueueDurable, handlerConsumeWarMsgs(gamestate))
+	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, routing.WarRecognitionsPrefix, routing.WarRecognitionsPrefix+".*", pubsub.SimpleQueueDurable, handlerWar(gamestate, pubChan))
 	if err != nil {
 		log.Fatalf("could not subscribe to war declarations queue: %v", err)
 	}
@@ -104,4 +105,14 @@ func main() {
 	   <-signalChan
 	   fmt.Println("RabbitMQ connection closed.")
 	*/
+}
+
+func publshGameLog(ch *amqp.Channel, msg, usr string) error {
+	gl := routing.GameLog{
+		CurrentTime: time.Now(),
+		Message:     msg,
+		Username:    usr,
+	}
+
+	return pubsub.PublishGob(ch, routing.ExchangePerilTopic, routing.GameLogSlug+"."+usr, gl)
 }
