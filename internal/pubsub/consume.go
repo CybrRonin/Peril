@@ -1,6 +1,8 @@
 package pubsub
 
 import (
+	"bytes"
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
 
@@ -85,13 +87,59 @@ func SubscribeJSON[T any](
 			switch handler(data) {
 			case Ack:
 				msg.Ack(false)
-				fmt.Println("Message acknowledged!")
 			case NackRequeue:
 				msg.Nack(false, true)
-				fmt.Println("Message negatively acknowledged but requeued!")
 			case NackDiscard:
 				msg.Nack(false, false)
-				fmt.Println("Message negatively acknowledged and discarded!")
+			}
+		}
+	}()
+
+	return nil
+}
+
+func SubscribeGob[T any](
+	conn *amqp.Connection,
+	exchange,
+	queueName,
+	key string,
+	queueType SimpleQueueType,
+	handler func(T) Acktype,
+) error {
+	ch, queue, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
+	if err != nil {
+		return fmt.Errorf("could not declare and bind queue: %v", err)
+	}
+
+	delivChan, err := ch.Consume(queue.Name, "", false, false, false, false, nil)
+	if err != nil {
+		return fmt.Errorf("could not consume messages : %v", err)
+	}
+
+	go func() {
+		defer ch.Close()
+		for msg := range delivChan {
+			if msg.ContentType != "application/gob" {
+				fmt.Printf("invalid content type: %s\n", err)
+				continue
+			}
+
+			var data T
+			buffer := bytes.NewBuffer(msg.Body)
+			dec := gob.NewDecoder(buffer)
+			err := dec.Decode(&data)
+			if err != nil {
+				fmt.Printf("could not decode message: %v\n", err)
+				continue
+			}
+
+			switch handler(data) {
+			case Ack:
+				msg.Ack(false)
+			case NackRequeue:
+				msg.Nack(false, true)
+			case NackDiscard:
+				msg.Nack(false, false)
 			}
 		}
 	}()

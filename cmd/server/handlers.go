@@ -1,0 +1,19 @@
+package main
+
+import (
+	"fmt"
+
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
+)
+
+func handlerLogs(gl routing.GameLog) pubsub.Acktype {
+	defer fmt.Print("> ")
+	err := gamelogic.WriteLog(gl)
+	if err != nil {
+		fmt.Printf("error writing log: %s\n", err)
+		return pubsub.NackRequeue
+	}
+	return pubsub.Ack
+}
